@@ -58,22 +58,31 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// LAB 1: Your code here.
+	// LAB 1: Your code here
+    // Print the stack backtrace.
     cprintf("Stack backtrace:\n");
 
+    // Initialize ebp with the current base pointer value
     uint32_t* ebp = (uint32_t*) read_ebp();
+
+    // Loop until we reach the end of the stack
     while (ebp) {
+        // Print the base pointer, instruction ppinter, and arguments
         cprintf("ebp %08x eip %08x args", ebp, ebp[1]);
         for (int i = 0; i < 5; ++i)
             cprintf(" %08x", ebp[i + 2]);
         cprintf("\n");
 
+        // Retrieve debuigging information for the current instruction pointer
         struct Eipdebuginfo info;
         debuginfo_eip(ebp[1], &info);
+
+        // Print the debugging information
         cprintf("        %s:%d: %.*s+%d\n", info.eip_file, info.eip_line,
                 info.eip_fn_namelen, info.eip_fn_name,
                 ebp[1] - info.eip_fn_addr);
 
+        // Move to the previous stack frame
         ebp = (uint32_t*) *ebp;
     }
 
