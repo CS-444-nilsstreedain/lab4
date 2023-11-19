@@ -206,6 +206,11 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	which one.
 	// Your code here.
 
+    // Perform binary search on stabs for the given address
+    stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+
+    // Assign the line number from the stabs array to the eip_line
+    info->eip_line = stabs[lline].n_desc;
 
 	// Search backwards from the line number for the relevant filename
 	// stab.
