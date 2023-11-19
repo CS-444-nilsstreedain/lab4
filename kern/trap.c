@@ -196,15 +196,16 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+    // Switch based on trap number
     switch (tf->tf_trapno) {
-    case T_PGFLT:
-        page_fault_handler(tf);
+    case T_PGFLT:                       // Page ault
+        page_fault_handler(tf);         // Handle page fault
         return;
-    case T_BRKPT:
-        monitor(tf);
+    case T_BRKPT:                       // Breakpoint
+        monitor(tf);                    // Handle breakpoint
         return;
-    case T_SYSCALL:
-        tf->tf_regs.reg_eax = syscall(
+    case T_SYSCALL:                     // System call
+        tf->tf_regs.reg_eax = syscall(  // Call syscall with registers
                 tf->tf_regs.reg_eax,
                 tf->tf_regs.reg_edx,
                 tf->tf_regs.reg_ecx,
