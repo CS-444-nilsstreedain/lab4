@@ -558,9 +558,11 @@ env_run(struct Env *e)
     // Switch to new env's address space
     lcr3(PADDR(e->env_pgdir));
 
+    unlock_kernel();
+
     // Restore new env's state
     env_pop_tf(&e->env_tf);
 
-	panic("env_run not yet implemented");
+	// panic("env_run not yet implemented");
 }
 

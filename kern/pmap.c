@@ -273,7 +273,10 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+    for (int i = 0; i< NCPU; i++) {
+        uintptr_t kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+        boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+    }
 }
 
 // --------------------------------------------------------------
@@ -315,16 +318,31 @@ page_init(void)
 	size_t i;
 
     uint32_t var_pgnum =  PGNUM(PADDR(boot_alloc(0))); // page number
-    for (i = 0; i < npages; i++) {
-        if (i == 0 || (i >= PGNUM(IOPHYSMEM) && i < var_pgnum)) {
-            // pages in use
+    //for (i = 1; i < MPENTRY_PADDR / PGSIZE; i++) {
+    //    pages[i].pp_ref = 0;
+	//	pages[i].pp_link = page_free_list;
+	//	page_free_list = &pages[i];
+    //}
+
+    //for (i = npages_basemem; i < var_pgnum; i++) {
+    //    pages[i].pp_ref = 1;
+    //    pages[i].pp_link = NULL;
+    //}
+
+    //for (i = var_pgnum; i < npages; i++) {
+    //    pages[i].pp_ref = 0;
+    //    pages[i].pp_link = page_free_list;
+    //    page_free_list = &pages[i];
+    //}
+
+    for (i = 1; i < npages; i++) {
+        if (i < MPENTRY_PADDR / PGSIZE || i >= var_pgnum) {
+            pages[i].pp_ref = 0;
+            pages[i].pp_link = page_free_list;
+            page_free_list = &pages[i];
+        } else {
             pages[i].pp_ref = 1;
             pages[i].pp_link = NULL;
-        } else {
-            // free pages
-            pages[i].pp_ref = 0;
-		    pages[i].pp_link = page_free_list;
-		    page_free_list = &pages[i];
         }
     }
 }
@@ -586,7 +604,13 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	size = ROUNDUP(size, PGSIZE);
+    boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+
+    if (base > MMIOLIM)
+        panic("Memory overflow in mmio_map_region");
+
+    return (void *)(base += size) - size;
 }
 
 static uintptr_t user_mem_check_addr;
