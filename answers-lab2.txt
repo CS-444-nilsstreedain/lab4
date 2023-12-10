@@ -1,0 +1,31 @@
+# Lab 2
+## 1. Assuming that the following JOS kernel code is correct, what type should variable x have, uintptr_t or physaddr_t, and why?
+Considering the provided code snippet, the variable `x` should be of type `uintptr_t`. This is because `x` is assigned the value of a pointer value, which holds a virtual address, as evidenced by the dereference operation `*value = 10`. In the JOS kernel, virtual addresses are represented using `uintptr_r`, while `phyaddr_t` is used for physical addresses. Since all pointers in C are virtual addresses and the MMU translates all memory references, the correct type for `x` in this case is `uintptr_t`, ensuring that the code adheres to the conventions of the JOS kernel for representing different types of addresses.
+
+## 2. What entries (rows) in the page directory have been filled in at this point? What addresses do they map and where do they point? In other words, fill out this table as much as possible:
+Entry | Base Virtual Address | Points to (logically)
+---|---|---
+1023 | 0xffc0000 | Page table for top 4MB of phys memory
+1022 | 0xff80000 | Page table for next top 4MB of phys memory
+. | . | .
+960 | 0xf0000000 | Initial 4MB segment of physical memory
+959 | 0xefc00000 | Bootstack
+958 | 0xef800000 | Memory-mapped input/output operations
+957 | 0xef400000 | Current page table
+956 | 0xef000000 | Page table containing pages struct
+. | . | .
+2 | 0x00800000 | User program space
+1 | 0x00400000 | UTEMP
+0 | 0x00000000 | 
+
+## 3. We have placed the kernel and user environment in the same address space. Why will user programs not be able to read or write the kernel’s memory? What specific mechanisms protect the kernel memory?
+Kernel memory is protected from user programs by disabling the PTE_U bit in its page table entries. If a user program tries to access this memory, the CPU generates a page fault, preventing unauthorized access and alerting the operating system.
+
+## 4. What is the maximum amount of physical memory that this operating system can support? Why?
+Given the kernel’s designated address space from 0xf0000000 to 0xffffffff, the operating system’s capacity for physical memory is capped at 256 MB. This is a direct result of the size of the address space allocated for the kernel, as it defines the range of physical memory addresses that the system can utilize.
+
+## 5. How much space overhead is there for managing memory, if we actually had the maximum amount of physical memory? How is this overhead broken down?
+When managing the maximum capacity of 256 MB of physical memory, the operating system experiences a memory management overhead totaling 6MB and 4KB. This overhead comprises 4MB for PageInfo structures, essential for tracking the status of each 4KB page; 2MB to accommodate the pagetables that facilitate virtual to physical address mapping; and an additional 4KB for the page directory, which holds references to these pagetables. These components together enable efficient and organized memory management within the system.
+
+## 6. Revisit the page table setup in kern/entry.S and kern/entrypgdir.c. Immediately after we turn on paging, EIP is still a low number (a little over 1MB). At what point do we transition to running at an EIP above KERNBASE? What makes it possible for us to continue executing at a low EIP between when we enable paging and when we begin running at an EIP above KERNBASE? Why is this transition necessary?
+The jump to an EIP (Extended Instruction Pointer) above KERNBASE occurs with the 'jmp *%eax' instruction in kern/entry.S, where the EIP is set to a value stored in the eax register, higher than KERNBASE. Before this point, execution at a low EIP is still feasible after enabling paging because of a mapping in the entry_pgdir table that links the first 4MB of virtual and physical memory. This mapping ensures the CPU can correctly process instructions in the lower memory region. Transitioning to a higher EIP is necessary for running the kernel in its reserved memory space, aligning with standard memory protection practices.
