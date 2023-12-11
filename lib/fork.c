@@ -25,6 +25,8 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+    if (!((uvpt[PGNUM(addr)] & (PTE_COW | PTE_P)) && (uvpd[PDX(addr)] & PTE_P)))
+        panic("pgfault error");
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,8 +35,19 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
+    if (sys_page_alloc(0, PFTEMP, PTE_W | PTE_U | PTE_P) < 0)
+        panic("pgfault error");
 
-	panic("pgfault not implemented");
+    memcpy(PFTEMP, ROUNDDOWN(addr, PGSIZE), PGSIZE);
+
+    if (sys_page_map(0, PFTEMP, 0, ROUNDDOWN(addr, PGSIZE), PTE_W | PTE_U | PTE_P) < 0)
+        panic("pgfault error");
+
+    if (sys_page_unmap(0, PFTEMP) < 0)
+        panic("pgfault error");
+
+    return;
+	// panic("pgfault not implemented");
 }
 
 //
@@ -54,7 +67,15 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-	panic("duppage not implemented");
+	void *va = (void *)(pn * PGSIZE);
+
+    if ((uvpt[pn] & (PTE_W | PTE_COW)) ? (
+            sys_page_map(0, va, envid, va, PTE_U | PTE_P | PTE_COW) < 0 ||
+            sys_page_map(0, va, 0,     va, PTE_U | PTE_P | PTE_COW) < 0) :
+            sys_page_map(0, va, envid, va, PTE_U | PTE_P) < 0)
+        panic("duppage error");
+
+    // panic("duppage not implemented");
 	return 0;
 }
 
@@ -78,7 +99,25 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
-	panic("fork not implemented");
+    set_pgfault_handler(pgfault);
+    envid_t envid = sys_exofork();
+
+    if (envid < 0)
+        panic("sys_exofork error");
+
+    if (envid == 0)
+        return thisenv = &envs[ENVX(sys_getenvid())], 0;
+
+    for (uint32_t addr = 0; addr < USTACKTOP; addr += PGSIZE)
+        if ((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P))
+            duppage(envid, PGNUM(addr));
+
+    sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_W | PTE_U | PTE_P);
+    sys_env_set_pgfault_upcall(envid, thisenv->env_pgfault_upcall);
+    sys_env_set_status(envid, ENV_RUNNABLE);
+
+    return envid;
+    // panic("fork not implemented");
 }
 
 // Challenge!
